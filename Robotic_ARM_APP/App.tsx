@@ -49,10 +49,11 @@ async function start(connected: BluetoothDevice | undefined, set_devices: React.
   }).catch(err => console.error(err))
 
   BluetoothSerial.withDelimiter('\n').then((_) => {
-    BluetoothSerial.addListener('read', ({ id, data }) => {
+    console.log("delimiter");
+    BluetoothSerial.addListener('read', ({ id, data }: { id: String, data: String }) => {
       if (connected && connected.device) {
         if (id === connected.device.id) {
-          console.log("[RECEIVED]: \"", data, "\"")
+          console.log("[RECEIVED]: \"", data.trimEnd(), "\"")
         }
       }
     })
@@ -68,6 +69,7 @@ const App = () => {
   const animation_loading = useRef(new Animated.Value(0)).current;
   const dropdownRef = useRef<SelectDropdown>(null);
   const angles = [useState<number>(45), useState<number>(45), useState<number>(45), useState<number>(45)]
+  let id = 0
 
 
   useEffect(() => {
@@ -147,13 +149,13 @@ const App = () => {
                 BluetoothSerial.pairDevice(selectedItem?.device.id).then((id) => {
                   if (id) {
                     if (selectedItem && selectedItem.device)
-                      BluetoothSerial.connect(selectedItem?.device.id).then(connect).catch((err) => { Alert.alert(err) })
+                      BluetoothSerial.connect(selectedItem?.device.id).then(connect).catch((err) => { Alert.alert('Erro', err.message) })
                   }
                 })
               }
               else {
                 console.log("paired")
-                BluetoothSerial.connect(selectedItem?.device.id).then(connect).catch((err) => { Alert.alert(err) })
+                BluetoothSerial.connect(selectedItem?.device.id).then(connect).catch((err) => { Alert.alert('Erro', err.message) })
               }
             }
           }}
@@ -186,10 +188,14 @@ const App = () => {
           <>
             {angles.map(([angle, set_angle]) => {
               return (
-                <>
+
+                <View
+                  key={id++}
+                  style={{ maxHeight: 80, width: '100%', paddingTop: 30, flex: 1, alignItems: 'center' }}
+                >
                   <Text>{angle}</Text>
                   <Slider
-                    style={{ width: '70%', height: 25, paddingBottom: 30 }}
+                    style={{ width: '70%', height: 25 }}
                     minimumValue={0}
                     maximumValue={120}
                     minimumTrackTintColor="#FFFFFF"
@@ -200,17 +206,27 @@ const App = () => {
                       set_angle(value);
                     }}
                   />
-                </>
+                </View>
               )
             })}
             <View style={{ marginTop: 50 }}>
+              <Button
+                title={"Connect"}
+                onPress={() => {
+                  if (connected && connected.device)
+                    BluetoothSerial.write("{start}", connected?.device.id);
+                }}
+              />
               <Button
                 title={"Disconnect"}
                 onPress={() => {
                   set_connected(undefined)
                   dropdownRef.current?.reset();
-                  if (connected && connected.device)
+                  if (connected && connected.device) {
                     BluetoothSerial.write("{end}", connected?.device.id);
+                    BluetoothSerial.disconnect(connected.device.id);
+                  }
+
                 }}
               />
             </View>
